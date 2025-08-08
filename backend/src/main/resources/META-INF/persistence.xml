@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.2" xmlns="http://xmlns.jcp.org/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence           http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd">
+  <persistence-unit name="com.example_iot-project_jar_0.0.1-SNAPSHOTPU" transaction-type="RESOURCE_LOCAL">
+    <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+    <class>troll.Interact</class>
+    <class>troll.Ebook</class>
+    <class>troll.Borrowslip</class>
+    <class>troll.Printedbook</class>
+    <class>troll.Book</class>
+    <class>troll.Admin</class>
+    <class>troll.Librarian</class>
+    <class>troll.Event</class>
+    <class>troll.User</class>
+    <class>troll.Reader</class>
+    <class>troll.ReaderEbook</class>
+    <class>troll.BorrowslipPrintedbook</class>
+    <class>troll.Payment</class>
+    <class>troll.ReaderEvent</class>
+    <properties>
+      <property name="javax.persistence.jdbc.url" value="jdbc:mysql://localhost:3306/librarydb?zeroDateTimeBehavior=CONVERT_TO_NULL"/>
+      <property name="javax.persistence.jdbc.user" value="root"/>
+      <property name="javax.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver"/>
+      <property name="javax.persistence.jdbc.password" value="Admin@123"/>
+    </properties>
+  </persistence-unit>
+</persistence>
