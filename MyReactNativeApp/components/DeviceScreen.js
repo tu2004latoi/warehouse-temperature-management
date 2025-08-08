@@ -1,380 +1,322 @@
 import React, { useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    FlatList,
-    StyleSheet,
-    ActivityIndicator,
-    Alert,
-    TouchableOpacity,
-    TextInput,
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import APIs, { authApis, endpoints } from '../configs/APIs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SensorData from './devices/SensorData';
 
 const DeviceScreen = () => {
-    const [devices, setDevices] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [relayStates, setRelayStates] = useState({});
-    const [conditions, setConditions] = useState({});
-    const [alerts, setAlerts] = useState({});
-    const [sensorData, setSensorData] = useState({});
-    const [defaultTemps, setDefaultTemps] = useState({}); // State cho default_temperature
-    const [selectedDevice, setSelectedDevice] = useState(null);
-    const [defaultTempInput, setDefaultTempInput] = useState('');
-    const [stompClient, setStompClient] = useState(null);
+  // Khai báo đầy đủ state
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [relayStates, setRelayStates] = useState({});
+  const [conditions, setConditions] = useState({});
+  const [alerts, setAlerts] = useState({});
+  const [sensorData, setSensorData] = useState({});
+  const [defaultTemps, setDefaultTemps] = useState({});
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [defaultTempInput, setDefaultTempInput] = useState('');
+  const [stompClient, setStompClient] = useState(null);
 
-    const loadDevices = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const res = await authApis(token).get(endpoints['my-devices']);
-            setDevices(res.data);
-            const initialRelayStates = {};
-            const initialConditions = {};
-            const initialAlerts = {};
-            const initialSensorData = {};
-            const initialDefaultTemps = {};
-            res.data.forEach(device => {
-                initialRelayStates[device.deviceCode] = false;
-                initialConditions[device.deviceCode] = 'normal';
-                initialAlerts[device.deviceCode] = false;
-                initialSensorData[device.deviceCode] = { temperature: null, humidity: null };
-                initialDefaultTemps[device.deviceCode] = null; // Khởi tạo default_temperature
-            });
-            setRelayStates(initialRelayStates);
-            setConditions(initialConditions);
-            setAlerts(initialAlerts);
-            setSensorData(initialSensorData);
-            setDefaultTemps(initialDefaultTemps);
-        } catch (err) {
-            console.error(err);
-            Alert.alert("Lỗi", "Không thể tải danh sách thiết bị");
-        }
-    };
+  // Hàm tải thiết bị từ API
+  const loadDevices = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await authApis(token).get(endpoints['my-devices']);
+      setDevices(res.data);
 
-    const handleRelayControl = async (deviceCode, isOn) => {
-        if (conditions[deviceCode] !== 'normal') {
-            Alert.alert('Lỗi', 'Không thể điều khiển relay: Điều kiện môi trường không bình thường');
-            return;
-        }
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const endpoint = isOn 
-                ? endpoints['relay-on'](deviceCode) 
-                : endpoints['relay-off'](deviceCode);
-            
-            const res = await authApis(token).post(endpoint);
-            setRelayStates(prev => ({ ...prev, [deviceCode]: isOn }));
-            Alert.alert('Thành công', `Đã ${isOn ? 'bật' : 'tắt'} relay của thiết bị ${deviceCode}`);
-        } catch (err) {
-            console.error(err);
-            const errorMessage = err.message === 'Network Error'
-                ? 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.'
-                : 'Không thể điều khiển relay. Vui lòng thử lại sau.';
-            Alert.alert('Lỗi', errorMessage);
-        }
-    };
+      // Khởi tạo các trạng thái ban đầu cho các thiết bị
+      const initialRelayStates = {};
+      const initialConditions = {};
+      const initialAlerts = {};
+      const initialSensorData = {};
+      const initialDefaultTemps = {};
+      res.data.forEach(device => {
+        initialRelayStates[device.deviceCode] = false;
+        initialConditions[device.deviceCode] = 'normal';
+        initialAlerts[device.deviceCode] = false;
+        initialSensorData[device.deviceCode] = { temperature: null, humidity: null };
+        initialDefaultTemps[device.deviceCode] = null;
+      });
 
-    const handleSetDefaultTemperature = async (deviceCode) => {
-        const temp = parseFloat(defaultTempInput);
-        if (isNaN(temp) || temp < 0 || temp > 100) {
-            Alert.alert('Lỗi', 'Nhiệt độ phải từ 0 đến 100°C');
-            return;
-        }
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const res = await authApis(token).post(
-                endpoints['set-default-temperature'](deviceCode),
-                {},
-                { params: { temperature: temp } }
-            );
-            setDefaultTemps(prev => ({ ...prev, [deviceCode]: temp }));
-            Alert.alert('Thành công', `Đã đặt nhiệt độ mặc định ${temp}°C cho thiết bị ${deviceCode}`);
-            setDefaultTempInput('');
-        } catch (err) {
-            console.error(err);
-            Alert.alert('Lỗi', 'Không thể đặt nhiệt độ mặc định');
-        }
-    };
-
-    const getRelayState = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const res = await authApis(token).get(endpoints['relay-state']);
-            const state = res.data.includes('ON');
-            if (selectedDevice) {
-                setRelayStates(prev => ({ ...prev, [selectedDevice]: state }));
-            }
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                await loadDevices();
-                await getRelayState();
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
-
-        // Thiết lập kết nối WebSocket
-        const client = new Client({
-            webSocketFactory: () => new SockJS('http://<your-backend-url>/ws'),
-            reconnectDelay: 5000,
-            onConnect: () => {
-                console.log('Connected to WebSocket');
-                client.subscribe('/topic/sensor', (message) => {
-                    try {
-                        const data = JSON.parse(message.body);
-                        const deviceCode = data.device_code;
-                        const relayState = data.relay === 'on';
-                        const condition = data.condition;
-                        const alert = data.alert;
-                        const temperature = data.temperature;
-                        const humidity = data.humidity;
-                        const defaultTemperature = data.default_temperature; // Nhận default_temperature
-                        setRelayStates(prev => ({ ...prev, [deviceCode]: relayState }));
-                        setConditions(prev => ({ ...prev, [deviceCode]: condition }));
-                        setAlerts(prev => ({ ...prev, [deviceCode]: alert }));
-                        setSensorData(prev => ({
-                            ...prev,
-                            [deviceCode]: { temperature, humidity }
-                        }));
-                        setDefaultTemps(prev => ({ ...prev, [deviceCode]: defaultTemperature }));
-                        if (alert && deviceCode === selectedDevice) {
-                            Alert.alert('Cảnh báo', `Nhiệt độ chênh lệch quá ±5°C so với mặc định (${defaultTemperature}°C) tại thiết bị ${deviceCode}`);
-                        }
-                    } catch (err) {
-                        console.error('Error parsing WebSocket message:', err);
-                    }
-                });
-            },
-            onStompError: (frame) => {
-                console.error('WebSocket error:', frame);
-            },
-        });
-        client.activate();
-        setStompClient(client);
-
-        return () => {
-            if (client) client.deactivate();
-        };
-    }, [selectedDevice]);
-
-    const renderItem = ({ item }) => (
-        <TouchableOpacity 
-            onPress={() => setSelectedDevice(item.deviceCode)}
-            style={[
-                styles.item,
-                selectedDevice === item.deviceCode && styles.selectedItem
-            ]}
-        >
-            <Text style={styles.title}>📱 {item.deviceName || '(Không có tên)'}</Text>
-
-            {sensorData[item.deviceCode]?.temperature && (
-                <View style={styles.infoContainer}>
-                    <Text style={styles.infoLabel}>Nhiệt độ:</Text>
-                    <Text style={styles.infoValue}>{sensorData[item.deviceCode].temperature}°C</Text>
-                </View>
-            )}
-            {sensorData[item.deviceCode]?.humidity && (
-                <View style={styles.infoContainer}>
-                    <Text style={styles.infoLabel}>Độ ẩm:</Text>
-                    <Text style={styles.infoValue}>{sensorData[item.deviceCode].humidity}%</Text>
-                </View>
-            )}
-            {alerts[item.deviceCode] && (
-                <Text style={styles.alertText}>
-                    Cảnh báo: Nhiệt độ chênh lệch quá ±5°C so với mặc định
-                </Text>
-            )}
-
-            <SensorData 
-                deviceCode={item.deviceCode} 
-                sensorData={sensorData[item.deviceCode]} 
-            />
-
-            <View style={styles.inputContainer}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Nhập nhiệt độ mặc định (°C)"
-                    keyboardType="numeric"
-                    value={defaultTempInput}
-                    onChangeText={setDefaultTempInput}
-                    placeholderTextColor="#888"
-                />
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonConfig]}
-                    onPress={() => handleSetDefaultTemperature(item.deviceCode)}
-                >
-                    <Text style={styles.buttonText}>Đặt nhiệt độ</Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity 
-                    style={[
-                        styles.button, 
-                        styles.buttonOn, 
-                        conditions[item.deviceCode] !== 'normal' && styles.buttonDisabled
-                    ]}
-                    onPress={() => handleRelayControl(item.deviceCode, true)}
-                    disabled={conditions[item.deviceCode] !== 'normal'}
-                >
-                    <Text style={styles.buttonText}>Bật Relay</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={[
-                        styles.button, 
-                        styles.buttonOff, 
-                        conditions[item.deviceCode] !== 'normal' && styles.buttonDisabled
-                    ]}
-                    onPress={() => handleRelayControl(item.deviceCode, false)}
-                    disabled={conditions[item.deviceCode] !== 'normal'}
-                >
-                    <Text style={styles.buttonText}>Tắt Relay</Text>
-                </TouchableOpacity>
-            </View>
-        </TouchableOpacity>
-    );
-
-    if (loading) {
-        return (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" color="#2d6cdf" />
-                <Text>Đang tải thiết bị...</Text>
-            </View>
-        );
+      setRelayStates(initialRelayStates);
+      setConditions(initialConditions);
+      setAlerts(initialAlerts);
+      setSensorData(initialSensorData);
+      setDefaultTemps(initialDefaultTemps);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Lỗi', 'Không thể tải danh sách thiết bị');
     }
+  };
+
+  // Hàm điều khiển relay
+  const handleRelayControl = async (deviceCode, isOn) => {
+    if (conditions[deviceCode] !== 'normal') {
+      Alert.alert('Lỗi', 'Không thể điều khiển relay: Điều kiện môi trường không bình thường');
+      return;
+    }
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const endpoint = isOn 
+        ? endpoints['relay-on'](deviceCode) 
+        : endpoints['relay-off'](deviceCode);
+      
+      await authApis(token).post(endpoint);
+      setRelayStates(prev => ({ ...prev, [deviceCode]: isOn }));
+      Alert.alert('Thành công', `Đã ${isOn ? 'bật' : 'tắt'} relay của thiết bị ${deviceCode}`);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Lỗi', 'Không thể điều khiển relay. Vui lòng thử lại.');
+    }
+  };
+
+  // Hàm đặt nhiệt độ mặc định
+  const handleSetDefaultTemperature = async (deviceCode) => {
+    const temp = parseFloat(defaultTempInput);
+    if (isNaN(temp) || temp < 0 || temp > 100) {
+      Alert.alert('Lỗi', 'Nhiệt độ phải từ 0 đến 100°C');
+      return;
+    }
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await authApis(token).post(
+        endpoints['set-default-temperature'](deviceCode),
+        {},
+        { params: { temperature: temp } }
+      );
+      setDefaultTemps(prev => ({ ...prev, [deviceCode]: temp }));
+      Alert.alert('Thành công', `Đã đặt nhiệt độ mặc định ${temp}°C cho thiết bị ${deviceCode}`);
+      setDefaultTempInput('');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Lỗi', 'Không thể đặt nhiệt độ mặc định');
+    }
+  };
+
+  // Kết nối WebSocket, nhận dữ liệu real-time
+  useEffect(() => {
+    const loadData = async () => {
+      await loadDevices();
+      setLoading(false);
+    };
+    loadData();
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS('http://<your-backend-url>/ws'),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe('/topic/sensor', (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            const deviceCode = data.device_code;
+            setRelayStates(prev => ({ ...prev, [deviceCode]: data.relay === 'on' }));
+            setConditions(prev => ({ ...prev, [deviceCode]: data.condition }));
+            setAlerts(prev => ({ ...prev, [deviceCode]: data.alert }));
+            setSensorData(prev => ({
+              ...prev,
+              [deviceCode]: { temperature: data.temperature, humidity: data.humidity }
+            }));
+            setDefaultTemps(prev => ({ ...prev, [deviceCode]: data.default_temperature }));
+            if (data.alert && deviceCode === selectedDevice) {
+              Alert.alert('Cảnh báo', `Nhiệt độ chênh lệch quá ±5°C so với mặc định (${data.default_temperature}°C) tại thiết bị ${deviceCode}`);
+            }
+          } catch (err) {
+            console.error('Lỗi xử lý dữ liệu WebSocket:', err);
+          }
+        });
+      },
+      onStompError: (frame) => {
+        console.error('Lỗi WebSocket:', frame);
+      },
+    });
+
+    client.activate();
+    setStompClient(client);
+
+    return () => {
+      if (client) client.deactivate();
+    };
+  }, [selectedDevice]);
+
+  // Render từng thiết bị
+  const renderItem = ({ item }) => {
+    const isSelected = selectedDevice === item.deviceCode;
+    const condition = conditions[item.deviceCode];
+    const alertActive = alerts[item.deviceCode];
+    const sensor = sensorData[item.deviceCode] || { temperature: '-', humidity: '-' };
+    const defaultTemp = defaultTemps[item.deviceCode];
 
     return (
-        <View style={styles.container}>
-            <FlatList
-                data={devices}
-                keyExtractor={(item) => item.deviceId.toString()}
-                renderItem={renderItem}
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={<Text style={styles.empty}>Bạn chưa có thiết bị nào.</Text>}
-            />
+      <TouchableOpacity
+        onPress={() => setSelectedDevice(item.deviceCode)}
+        activeOpacity={0.9}
+        className={`
+          bg-white rounded-3xl p-6 mb-4
+          ${isSelected ? 'border-2 border-primary-500' : 'border border-gray-200'}
+          shadow-md
+        `}
+      >
+        {/* Header */}
+        <View className="flex-row justify-between mb-4 items-center">
+          <View className="flex-row items-center">
+            <View className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 mr-3 items-center justify-center shadow-lg">
+              <Text className="text-white text-2xl">📱</Text>
+            </View>
+            <View>
+              <Text className="text-lg font-bold text-secondary-800">
+                {item.deviceName || '(Không có tên)'}
+              </Text>
+              <Text className="text-sm text-secondary-500">
+                Mã: {item.deviceCode}
+              </Text>
+            </View>
+          </View>
+          <View
+            className={`w-3 h-3 rounded-full ${
+              condition === 'normal' ? 'bg-green-500' : 'bg-yellow-500'
+            }`}
+          />
         </View>
-    );
-};
 
-const styles = StyleSheet.create({
-    list: {
-        padding: 16,
-        backgroundColor: '#fff',
-    },
-    item: {
-        backgroundColor: '#f0f4ff',
-        padding: 16,
-        borderRadius: 10,
-        marginBottom: 12,
-        elevation: 2,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 12,
-        color: '#2d6cdf',
-    },
-    infoContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 6,
-    },
-    infoLabel: {
-        fontSize: 14,
-        color: '#333',
-        fontWeight: '600',
-    },
-    infoValue: {
-        fontSize: 14,
-        color: '#333',
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    empty: {
-        textAlign: 'center',
-        marginTop: 20,
-        color: '#888',
-        fontSize: 16,
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 10,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#ddd',
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 10,
-        marginBottom: 10,
-    },
-    input: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 5,
-        padding: 10,
-        marginRight: 10,
-        backgroundColor: '#fff',
-        fontSize: 14,
-    },
-    button: {
-        flex: 1,
-        padding: 12,
-        borderRadius: 5,
-        marginHorizontal: 5,
-        alignItems: 'center',
-    },
-    buttonOn: {
-        backgroundColor: '#4CAF50',
-    },
-    buttonOff: {
-        backgroundColor: '#f44336',
-    },
-    buttonConfig: {
-        backgroundColor: '#2d6cdf',
-        flex: 0.5,
-    },
-    buttonDisabled: {
-        backgroundColor: '#cccccc',
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    alertText: {
-        color: 'red',
-        fontWeight: 'bold',
-        marginTop: 8,
-        marginBottom: 8,
-        fontSize: 14,
-        textAlign: 'center',
-    },
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    selectedItem: {
-        borderWidth: 2,
-        borderColor: '#2d6cdf',
-    },
-});
+        {/* Sensor Data */}
+        <View className="flex-row justify-between bg-primary-50 rounded-2xl p-4 mb-4">
+          <View className="flex-1 bg-white rounded-xl p-4 items-center mr-3 shadow">
+            <Text className="text-4xl">🌡️</Text>
+            <Text className="text-xl font-bold text-secondary-800 mt-2">
+              {sensor.temperature !== null ? `${sensor.temperature}°C` : '-'}
+            </Text>
+            <Text className="text-xs text-secondary-500 mt-1">Nhiệt độ</Text>
+          </View>
+          <View className="flex-1 bg-white rounded-xl p-4 items-center shadow">
+            <Text className="text-4xl">💧</Text>
+            <Text className="text-xl font-bold text-secondary-800 mt-2">
+              {sensor.humidity !== null ? `${sensor.humidity}%` : '-'}
+            </Text>
+            <Text className="text-xs text-secondary-500 mt-1">Độ ẩm</Text>
+          </View>
+        </View>
+
+        {/* Alert */}
+        {alertActive && (
+          <View className="flex-row bg-red-100 border border-red-300 rounded-2xl p-4 mb-4 items-center">
+            <Text className="text-2xl mr-3">⚠️</Text>
+            <Text className="text-red-700 font-semibold flex-shrink">
+              Cảnh báo: Nhiệt độ chênh lệch quá ±5°C so với mặc định ({defaultTemp}°C)
+            </Text>
+          </View>
+        )}
+
+        {/* Temperature Input & Button */}
+        <View className="bg-secondary-100 rounded-2xl p-4 mb-4">
+          <Text className="text-secondary-700 font-semibold mb-3">
+            Cài đặt nhiệt độ mặc định
+          </Text>
+          <View className="flex-row space-x-3">
+            <TextInput
+              className="flex-1 bg-white border border-secondary-300 rounded-xl px-4 py-3 text-secondary-800"
+              placeholder="Nhiệt độ (°C)"
+              placeholderTextColor="#94a3b8"
+              keyboardType="numeric"
+              value={defaultTempInput}
+              onChangeText={setDefaultTempInput}
+            />
+            <TouchableOpacity
+              className="bg-primary-500 rounded-xl px-6 py-3 items-center justify-center shadow-md"
+              onPress={() => handleSetDefaultTemperature(item.deviceCode)}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-semibold">Đặt</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Relay Controls */}
+        <View className="flex-row space-x-3">
+          <TouchableOpacity
+            disabled={condition !== 'normal'}
+            onPress={() => handleRelayControl(item.deviceCode, true)}
+            className={`flex-1 rounded-2xl py-4 items-center ${
+              condition === 'normal'
+                ? 'bg-green-500 shadow-lg'
+                : 'bg-gray-300'
+            }`}
+            activeOpacity={condition === 'normal' ? 0.8 : 1}
+          >
+            <Text className="text-white font-bold">Bật Relay</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            disabled={condition !== 'normal'}
+            onPress={() => handleRelayControl(item.deviceCode, false)}
+            className={`flex-1 rounded-2xl py-4 items-center ${
+              condition === 'normal'
+                ? 'bg-red-500 shadow-lg'
+                : 'bg-gray-300'
+            }`}
+            activeOpacity={condition === 'normal' ? 0.8 : 1}
+          >
+            <Text className="text-white font-bold">Tắt Relay</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-primary-50">
+        <View className="bg-white rounded-3xl p-8 shadow-lg items-center">
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text className="text-secondary-600 font-medium mt-4">Đang tải thiết bị...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View className="flex-1 bg-primary-50">
+      <ScrollView
+        contentContainerStyle={{ padding: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="mb-6">
+          <Text className="text-2xl font-bold text-secondary-800 mb-2">
+            Thiết bị của bạn
+          </Text>
+          <Text className="text-secondary-600">
+            Quản lý và điều khiển các thiết bị cảm biến
+          </Text>
+        </View>
+
+        <FlatList
+          data={devices}
+          keyExtractor={(item) => item.deviceId.toString()}
+          renderItem={renderItem}
+          scrollEnabled={false}
+          ListEmptyComponent={
+            <View className="bg-white rounded-3xl p-8 items-center shadow-md">
+              <Text className="text-6xl mb-4">📱</Text>
+              <Text className="text-secondary-800 text-lg font-semibold mb-2">
+                Chưa có thiết bị nào
+              </Text>
+              <Text className="text-secondary-500 text-center">
+                Bạn chưa có thiết bị nào được kết nối.
+              </Text>
+            </View>
+          }
+        />
+      </ScrollView>
+    </View>
+  );
+};
 
 export default DeviceScreen;

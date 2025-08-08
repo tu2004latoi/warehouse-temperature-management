@@ -27,6 +27,7 @@
       "package": "com.chuong2004.MyReactNativeApp"
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "extra": {
