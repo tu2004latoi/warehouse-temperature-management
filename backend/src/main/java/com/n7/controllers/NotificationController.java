@@ -30,10 +30,10 @@ public class NotificationController {
     public ResponseEntity<String> saveExpoToken(@RequestBody TokenRequestDTO tokenRequest, Principal principal) {
         String username = principal.getName();
         User u = this.userService.getUserByUsername(username);
+        String password = u.getPassword();
 
         if (u != null) {
-            u.setExpoToken(tokenRequest.getToken());
-            this.userService.addOrUpdateUser(u);
+            this.userService.updateExpoToken(u,tokenRequest.getToken());
             return ResponseEntity.ok("Token saved successfully");
         } else {
             return ResponseEntity.badRequest().body("User not found");

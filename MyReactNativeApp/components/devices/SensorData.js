@@ -19,6 +19,7 @@ const SensorData = ({ deviceCode }) => {
           try {
             const data = JSON.parse(message.body);
             setSensorData(data);
+            console.log('📊 Dữ liệu cảm biến:', data);
           } catch (err) {
             console.error('❌ Lỗi phân tích JSON:', err);
           }

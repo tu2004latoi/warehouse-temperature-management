@@ -13,6 +13,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import APIs, { authApis, endpoints } from '../configs/APIs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SensorData from './devices/SensorData';
 
 const DeviceScreen = () => {
   // Khai báo đầy đủ state
@@ -67,10 +68,10 @@ const DeviceScreen = () => {
     }
     try {
       const token = await AsyncStorage.getItem('token');
-      const endpoint = isOn 
-        ? endpoints['relay-on'](deviceCode) 
+      const endpoint = isOn
+        ? endpoints['relay-on'](deviceCode)
         : endpoints['relay-off'](deviceCode);
-      
+
       await authApis(token).post(endpoint);
       setRelayStates(prev => ({ ...prev, [deviceCode]: isOn }));
       Alert.alert('Thành công', `Đã ${isOn ? 'bật' : 'tắt'} relay của thiết bị ${deviceCode}`);
@@ -182,9 +183,8 @@ const DeviceScreen = () => {
             </View>
           </View>
           <View
-            className={`w-3 h-3 rounded-full ${
-              condition === 'normal' ? 'bg-green-500' : 'bg-yellow-500'
-            }`}
+            className={`w-3 h-3 rounded-full ${condition === 'normal' ? 'bg-green-500' : 'bg-yellow-500'
+              }`}
           />
         </View>
 
@@ -216,6 +216,11 @@ const DeviceScreen = () => {
           </View>
         )}
 
+        <SensorData
+          deviceCode={item.deviceCode}
+          sensorData={sensorData[item.deviceCode]}
+        />
+
         {/* Temperature Input & Button */}
         <View className="bg-secondary-100 rounded-2xl p-4 mb-4">
           <Text className="text-secondary-700 font-semibold mb-3">
@@ -245,11 +250,10 @@ const DeviceScreen = () => {
           <TouchableOpacity
             disabled={condition !== 'normal'}
             onPress={() => handleRelayControl(item.deviceCode, true)}
-            className={`flex-1 rounded-2xl py-4 items-center ${
-              condition === 'normal'
+            className={`flex-1 rounded-2xl py-4 items-center ${condition === 'normal'
                 ? 'bg-green-500 shadow-lg'
                 : 'bg-gray-300'
-            }`}
+              }`}
             activeOpacity={condition === 'normal' ? 0.8 : 1}
           >
             <Text className="text-white font-bold">Bật Relay</Text>
@@ -257,11 +261,10 @@ const DeviceScreen = () => {
           <TouchableOpacity
             disabled={condition !== 'normal'}
             onPress={() => handleRelayControl(item.deviceCode, false)}
-            className={`flex-1 rounded-2xl py-4 items-center ${
-              condition === 'normal'
+            className={`flex-1 rounded-2xl py-4 items-center ${condition === 'normal'
                 ? 'bg-red-500 shadow-lg'
                 : 'bg-gray-300'
-            }`}
+              }`}
             activeOpacity={condition === 'normal' ? 0.8 : 1}
           >
             <Text className="text-white font-bold">Tắt Relay</Text>

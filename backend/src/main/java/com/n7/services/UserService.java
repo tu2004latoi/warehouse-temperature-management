@@ -14,4 +14,5 @@ public interface UserService extends UserDetailsService {
     List<User> getAllUsers();
     boolean authenticate(String username, String password);
     void deleteUser(User u);
+    void updateExpoToken(User u, String token);
 }

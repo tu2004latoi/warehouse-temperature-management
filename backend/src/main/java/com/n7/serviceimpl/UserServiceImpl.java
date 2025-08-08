@@ -59,9 +59,6 @@ public class UserServiceImpl implements UserService {
 
         if (u.getPassword() != null && !u.getPassword().isEmpty()) {
             u.setPassword(this.passwordEncoder.encode(u.getPassword()));
-        } else if (u.getUserId() != null) {
-            Optional<User> userSaved = this.userRepo.findById(u.getUserId());
-            userSaved.ifPresent(user -> u.setPassword(user.getPassword()));
         }
 
         return this.userRepo.save(u);
@@ -98,5 +95,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(User u) {
         this.userRepo.delete(u);
+    }
+
+    @Override
+    public void updateExpoToken(User u, String token) {
+        u.setExpoToken(token);
+        this.userRepo.save(u);
     }
 }
