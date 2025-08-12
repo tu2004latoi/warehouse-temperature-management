@@ -9,7 +9,7 @@ const SensorData = ({ deviceCode }) => {
   useEffect(() => {
     if (!deviceCode) return;
 
-    const socket = new SockJS('http://192.168.1.188:8080/ws');
+    const socket = new SockJS('http://192.168.1.2:8080/ws');
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,

@@ -1,48 +1,28 @@
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-export const BASE_URL = 'http://localhost:8080/api/';
+const BASE_URL = 'http://192.168.1.2:8080/api/';
 
 export const endpoints = {
-	login: '/auth/login',
-	profile: '/secure/profile',
-	users: '/users',
-	usersDetail: (id) => `/users/${id}`,
-	userAdd: '/users/add',
-	userUpdate: (id) => `/users/${id}/update`,
-	userDelete: (id) => `/users/${id}`,
-
-
-	products: '/products',
-	productAdd: '/products/add',
-	productUpdate: (id) => `/products/${id}/update`,
-	productDetail: (id) => `/products/${id}`,
-	productDelete: (id) => `/products/${id}`,
-
-	categories: '/categories',
-	categoryDetail: (id)=> `/categories/${id}`,
-	categoryAdd: `/categories/add`,
-	categoryDelete:(id) => `/categories/${id}`,
-
-	units: '/units',
-	unitDetail:(id)=> `/units/${id}`,
-	unitAdd: '/units/add',
-	unitDelete:(id)=> `/units/${id}`,
+	'login': '/auth/login',
+    'current-user': '/secure/profile',
+    'add-device': (deviceCode) => `/devices/code/${deviceCode}`,
+    'my-devices': '/my-devices',
+    'relay-on': (deviceCode) => `/relay/${deviceCode}/on`,
+    'relay-off': (deviceCode) => `/relay/${deviceCode}/off`,
+    'relay-state': '/relay/state',
+    'set-default-temperature': (deviceCode) => `/config/${deviceCode}/temperature`,
+    'add-warehouse': '/warehouses/add',
+    'get-warehouses': '/warehouses',
+    'save-token': '/save-token',
 }
 
-export const authApis = async () => {
-	const token = await AsyncStorage.getItem('token');
-	if (!token) {
-		console.error("Token không tồn tại");
-		throw new Error("Token không tồn tại");
-	}
+export const authApis = (token) => {
 	return axios.create({
-		baseURL: BASE_URL,
+		baseURL: BASE_URL, 
 		headers: {
-			'Authorization': `Bearer ${token}`
+			'Authorization': `Bearer ${token}`,
 		}
-	})
-
-}
+	});
+};
 
 export default axios.create({
 	baseURL: BASE_URL

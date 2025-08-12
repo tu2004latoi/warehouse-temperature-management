@@ -1,69 +1,103 @@
-import { createContext, useState, useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import APIs, { authApis, endpoints } from "../configs/Apis";
-import Cookies from "js-cookie";
-const AuthContext = createContext();
+import React, { useContext, useEffect, useReducer, useState } from "react";
+import "./App.css";
+import cookie from "js-cookie";
+import myUserReducer from "./configs/MyAccountReducer";
+import { authApis, endpoints } from "./configs/APIs";
+import LoadingSpinner from "./components/layouts/LoadingSpinner";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("user");
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [token, setToken] = useState(Cookies.get("token") || null);
-  const navigate = useNavigate();
+import Login from "./pages/Login";
+import { MyDispatchContext, MyUserContext } from "./configs/MyContext";
+import UtilityScreen from "./components/UtilityScreen";
+import AddWarehouse from "./pages/AddWarehouse";
+import AddDevice from "./pages/AddDevice";
+import DeviceScreenWeb from "./pages/DeviceScreen";
+
+const PrivateRoute = ({ children }) => {
+  const user = useContext(MyUserContext);
+  return user ? children : <Navigate to="/login" replace />;
+};
+function App() {
+  const [user, dispatch] = useReducer(myUserReducer, null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-  }, []);
-  // Kiểm tra token khi load app
-  useEffect(() => {
-    if (!token || !user) return;
-    const fetchProfile = async () => {
+    const handleTokenReceived = async () => {
+
       try {
-        const api = authApis();
-        const res = await api.get(endpoints.profile);
-        setUser(res.data);
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            let res = await authApis().get(endpoints["current-user"]);
+            console.log(res.data)
+            dispatch({
+              type: "login",
+              payload: res.data,
+            });
+          } catch (err) {
+            console.error("Lỗi load user từ token:", err);
+            cookie.remove("token");
+          }
+        }
       } catch (err) {
-        console.error("ERR", err.response?.data || err.message);
-        logout();
-
+        console.error("Failed to send token:", err);
+      } finally {
+        setLoading(false);
       }
     };
+    handleTokenReceived();
+  }, []);
 
-    fetchProfile();
-  }, [token]);
-
-  const login = async (credentials) => {
-    const response = await APIs.post(endpoints.login, credentials, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    setToken(response.data.token);
-    Cookies.set('token', response.data.token, { expires: 1 });
-    const api = authApis(); // gắn token
-    const profileRes = await api.get(endpoints.profile);
-    localStorage.setItem("user", JSON.stringify(profileRes.data));
-    setUser(profileRes.data); // cập nhật user
-    navigate("/");
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("user");
-    Cookies.remove("token");
-    // navigate("/login");
-  };
-
+  if (loading) return <LoadingSpinner />;
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, setUser  }}>
-      {children}
-    </AuthContext.Provider>
+    <MyUserContext.Provider value={user}>
+      <MyDispatchContext.Provider value={dispatch}>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <UtilityScreen />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/AddWarehouse"
+              element={
+                <PrivateRoute>
+                  <AddWarehouse />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/AddDevice"
+              element={
+                <PrivateRoute>
+                  <AddDevice />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/Devices"
+              element={
+                <PrivateRoute>
+                  <DeviceScreenWeb />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </Router>
+      </MyDispatchContext.Provider>
+    </MyUserContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
+export default App;

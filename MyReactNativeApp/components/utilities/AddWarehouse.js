@@ -148,10 +148,10 @@ const AddWarehouse = ({ navigation }) => {
                         >
                             {loading ? (
                                 <View className="flex-row items-center justify-center">
-                                    <Text className="text-white font-bold text-lg">Đang thêm...</Text>
+                                    <Text className="text-black font-bold text-lg">Đang thêm...</Text>
                                 </View>
                             ) : (
-                                <Text className="text-white font-bold text-lg text-center">Thêm kho</Text>
+                                <Text className="text-black font-bold text-lg text-center">Thêm kho</Text>
                             )}
                         </TouchableOpacity>
                     </View>

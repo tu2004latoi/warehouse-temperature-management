@@ -194,10 +194,10 @@ const AddDevice = () => {
                             {loading ? (
                                 <View className="flex-row items-center justify-center">
                                     <ActivityIndicator color="#ffffff" size="small" />
-                                    <Text className="text-white font-bold text-lg ml-3">Đang thêm...</Text>
+                                    <Text className="text-black font-bold text-lg ml-3">Đang thêm...</Text>
                                 </View>
                             ) : (
-                                <Text className="text-white font-bold text-lg text-center">Thêm thiết bị</Text>
+                                <Text className="text-black font-bold text-lg text-center">Thêm thiết bị</Text>
                             )}
                         </TouchableOpacity>
                     </View>

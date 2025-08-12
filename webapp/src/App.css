@@ -1,22 +1,6 @@
-/* ============================
-   Theme Variables
-   ============================ */
-.app.light {
-  --bg-color: #ffffff;
-  --text-color: #000000;
-  --sidebar-color: #f1f1f1;
-  --button-bg: #f1f1f1;
-  --button-text: green;
-}
-
-.app.dark {
-  --navbar-bg: green;
-  --bg-color: #1e1e2f;
-  --text-color: #ffffff;
-  --sidebar-color: #2b2b3c;
-  --button-bg: #2b2b3c;
-  --button-text: #ffffff;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ============================
    Global Styles

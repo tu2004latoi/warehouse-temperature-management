@@ -2,7 +2,6 @@ import React, { useReducer, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Login from './components/Login';
-import SensorData from './components/devices/SensorData';
 import UtilityScreen from './components/UtilityScreen';
 import DeviceScreen from './components/DeviceScreen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,6 +14,7 @@ import NotificationSetup from './components/NotificationSetup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, View } from 'react-native';
 import "./global.css"
+import Logout from './components/Logout';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -93,7 +93,7 @@ const App = () => {
   };
 
   return (
-    <MyUserContext.Provider value={user}>
+    <MyUserContext.Provider value={[user, dispatch]}>
       <MyDispatchContext.Provider value={dispatch}>
         <NavigationContainer>
           <Stack.Navigator 
@@ -138,6 +138,7 @@ const App = () => {
                     },
                   }}
                 />
+                <Stack.Screen name="Logout" component={Logout} />
                 <Stack.Screen 
                   name="AddWarehouse" 
                   component={AddWarehouse}
